@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  email         String?         @unique
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  image         String?
+  address       String?
+  city          String?
+  country       String?
+  firstName     String?
+  lastName      String?
+  phone         String?
+  postCode      String?
+  suburb        String?
+  role          Role            @default(USER)
+  Order         Order[]
+  ProductReview ProductReview[]
+  ShopReview    ShopReview[]
+
+  @@map("users")
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  name          String
+  published     Boolean         @default(false)
+  price         Float
+  description   String
+  shopId        String?
+  categoryId    String?
+  specification String?
+  productType   String?     
+  soldCount     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime?
+  clickCounts   Int             @default(0)
+  category      Category?       @relation(fields: [categoryId], references: [id])
+  shop          Shop?           @relation(fields: [shopId], references: [id])
+  images        ProductImage[]
+  orderItems    OrderItem[]
+  reviews       ProductReview[]
+  ShopReview    ShopReview[]    @relation("ProductToShopReview")
+}
+
+model ProductReview {
+  id        String   @id @default(cuid())
+  review    String
+  rating    Float
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("product_reviews")
+}
+
+model ProductImage {
+  id        String    @id @default(cuid())
+  url       String
+  isPrimary Boolean   @default(false)
+  productId String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  product   Product   @relation(fields: [productId], references: [id])
+}
+
+model Shop {
+  id              String       @id @default(cuid())
+  name            String
+  address         String
+  phone           String
+  openingHours    String
+  imageBanner     String?
+  imageLogo       String?
+  maxDeliveryTime Int?         @default(5)
+  minDeliveryTime Int?         @default(3)
+  products        Product[]
+  shipments       Shipment[]
+  reviews         ShopReview[]
+}
+
+model ShopReview {
+  id        String    @id @default(cuid())
+  review    String
+  rating    Float
+  shopId    String?
+  userId    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  shop      Shop?     @relation(fields: [shopId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+  products  Product[] @relation("ProductToShopReview")
+
+  @@map("shop_reviews")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  image       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+  orderNumber Int?
+  products    Product[]
+}
+
+enum Currency {
+  NZD
+  AUD
+   @@map("currency") // ← this tells Prisma it's mapped to native enum in Postgres
+}
+
+model Order {
+  id                   String        @id @default(cuid())
+  userId               String?
+  totalPrice           Float
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  paymentMethod        String?
+  shippingAddress      String?
+  shippingSuburb       String?
+  shippingCity         String?
+  shippingPostCode     String?
+  shippingCountry      String?
+  shippingPhone        String?
+  deliveryInstructions String?
+  shippingMethod       String?
+  paymentIntentId      String?
+  paymentStatus        PaymentStatus @default(PENDING)
+  orderStatus          OrderStatus   @default(PROCESSING)
+  orderCode            String?       @unique
+  shippingFullName     String?
+  discountAmount       Float?
+  discountCode         String?
+  discountApplied      String?
+  preTotalPrice        Float
+  deliveryFee          Float?
+  shippingMethodLabel  String?
+  priceAfterDiscount   Float?
+  currency             Currency @default(NZD)
+  shipments            Shipment[]
+  orderItems           OrderItem[]
+  user                 User?         @relation(fields: [userId], references: [id])
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String    @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  price      Float
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
+  shipmentId String?
+  digitalDelivered Boolean? 
+  downloadCount    Int?     
+  fulfillmentType  String?  
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [productId], references: [id])
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id])
+
+  @@map("order_items")
+}
+
+model Shipment {
+  id                      String         @id @default(cuid())
+  orderId                 String
+  shopId                  String
+  trackingCode            String?
+  shippingProvider        String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime?
+  shipmentStatus          ShipmentStatus @default(PENDING)
+  shippingProviderWebsite String?
+  order                   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shop                    Shop           @relation(fields: [shopId], references: [id])
+  orderItems              OrderItem[]
+}
+
+model PostCategory {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  posts     Post[]
+}
+
+model Post {
+  id             String        @id @default(cuid())
+  title          String
+  content        String
+  viewCounts     Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime?
+  postCategoryId String?
+  category       PostCategory? @relation(fields: [postCategoryId], references: [id])
+  images         PostImages[]
+}
+
+model PostImages {
+  id        String    @id @default(cuid())
+  url       String
+  postId    String
+  isPrimary Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  post      Post      @relation(fields: [postId], references: [id])
+}
+
+model SearchedKeyword {
+  id        String    @id @default(cuid())
+  keyword   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  counts    Int       @default(1)
+}
+
+model MinimumOrder {
+  id        String    @id @default(cuid())
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  country   String
+}
+
+model DiscountCode {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  discountValue  Float
+  isPercentage   Boolean
+  expirationDate DateTime?
+  usageCount     Int       @default(0)
+  maxUsage       Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  published      Boolean   @default(false)
+}
+
+model Promotion {
+  id          String            @id @default(cuid())
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  published   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  hasLink     Boolean           @default(false)
+  images      PromotionImages[]
+}
+
+model PromotionImages {
+  id          String    @id @default(cuid())
+  url         String
+  promotionId String
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+}
+
+model NewsletterSubscriber {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  isActive    Boolean   @default(true)
+  source      String?   // e.g., "popup", "footer", "checkout"
+  discountUsed Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("newsletter_subscribers")
+}
+
+model DeliveryZone {
+  id               String             @id @default(cuid())
+  name             String             // e.g., "New Zealand", "Australia"
+  countryCode      String             @unique // e.g., "NZ", "AU"
+  currency         Currency           @default(NZD)
+  freeThreshold    Float              // Free shipping threshold
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  shippingMethods  ShippingMethod[]
+  
+  @@map("delivery_zones")
+}
+
+model ShippingMethod {
+  id               String       @id @default(cuid())
+  deliveryZoneId   String
+  methodId         String       // e.g., "nz_tracked", "au_express"
+  label            String       // e.g., "Economy", "Courier"
+  price            Float        // Base price in zone currency
+  estimatedDays    String       // e.g., "1-3 business days"
+  isFreeEligible   Boolean      @default(false) // Can be free over threshold
+  isActive         Boolean      @default(true)
+  sortOrder        Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deliveryZone     DeliveryZone @relation(fields: [deliveryZoneId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryZoneId, methodId])
+  @@map("shipping_methods")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PROCESSING
+  COMPLETED
+  CANCELED
+  SHIPPING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum ShipmentStatus {
+  PENDING
+  SHIPPED
+}

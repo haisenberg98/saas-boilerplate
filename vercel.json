@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "app/api/upload/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/upload-product-image/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/upload-post-image/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/upload-promotion-image/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

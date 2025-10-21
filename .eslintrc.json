@@ -1,0 +1,9 @@
+{
+    "extends": [
+        "next/core-web-vitals",
+        "plugin:prettier/recommended" // 👈 this makes ESLint + Prettier cooperate
+    ],
+    "rules": {
+        "newline-before-return": "off" // 👈 optional, if you want Prettier to handle it
+    }
+}

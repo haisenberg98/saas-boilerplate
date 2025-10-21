@@ -1,0 +1,444 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// ============================================
+// USER MODEL
+// ============================================
+model User {
+  id            String          @id @default(cuid())
+  email         String?         @unique
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  image         String?
+  address       String?
+  city          String?
+  country       String?
+  firstName     String?
+  lastName      String?
+  phone         String?
+  postCode      String?
+  suburb        String?
+  role          Role            @default(USER)
+  orders        Order[]
+  itemReviews   ItemReview[]
+  providerReviews ProviderReview[]
+
+  @@map("users")
+}
+
+// ============================================
+// ITEM MODEL (formerly Product)
+// ============================================
+model Item {
+  id            String          @id @default(cuid())
+  name          String
+  published     Boolean         @default(false)
+  price         Float
+  description   String
+  providerId    String?
+  categoryId    String?
+  specification String?
+  itemType      String?
+  soldCount     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime?
+  clickCounts   Int             @default(0)
+  category      Category?       @relation(fields: [categoryId], references: [id])
+  provider      Provider?       @relation(fields: [providerId], references: [id])
+  images        ItemImage[]
+  orderItems    OrderItem[]
+  reviews       ItemReview[]
+  providerReviews ProviderReview[] @relation("ItemToProviderReview")
+
+  @@map("items")
+}
+
+// ============================================
+// ITEM REVIEW MODEL (formerly ProductReview)
+// ============================================
+model ItemReview {
+  id        String   @id @default(cuid())
+  review    String
+  rating    Float
+  userId    String
+  itemId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  item      Item     @relation(fields: [itemId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("item_reviews")
+}
+
+// ============================================
+// ITEM IMAGE MODEL (formerly ProductImage)
+// ============================================
+model ItemImage {
+  id        String    @id @default(cuid())
+  url       String
+  isPrimary Boolean   @default(false)
+  itemId    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  item      Item      @relation(fields: [itemId], references: [id])
+
+  @@map("item_images")
+}
+
+// ============================================
+// PROVIDER MODEL (formerly Shop)
+// ============================================
+model Provider {
+  id              String       @id @default(cuid())
+  name            String
+  address         String
+  phone           String
+  openingHours    String
+  imageBanner     String?
+  imageLogo       String?
+  maxDeliveryTime Int?         @default(5)
+  minDeliveryTime Int?         @default(3)
+  items           Item[]
+  fulfillments    Fulfillment[]
+  reviews         ProviderReview[]
+
+  @@map("providers")
+}
+
+// ============================================
+// PROVIDER REVIEW MODEL (formerly ShopReview)
+// ============================================
+model ProviderReview {
+  id        String    @id @default(cuid())
+  review    String
+  rating    Float
+  providerId String?
+  userId    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  provider  Provider? @relation(fields: [providerId], references: [id])
+  user      User?     @relation(fields: [userId], references: [id])
+  items     Item[]    @relation("ItemToProviderReview")
+
+  @@map("provider_reviews")
+}
+
+// ============================================
+// CATEGORY MODEL
+// ============================================
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  image       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+  orderNumber Int?
+  items       Item[]
+
+  @@map("categories")
+}
+
+// ============================================
+// CURRENCY ENUM
+// ============================================
+enum Currency {
+  NZD
+  AUD
+  @@map("currency")
+}
+
+// ============================================
+// ORDER MODEL
+// ============================================
+model Order {
+  id                   String        @id @default(cuid())
+  userId               String?
+  totalPrice           Float
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  paymentMethod        String?
+  shippingAddress      String?
+  shippingSuburb       String?
+  shippingCity         String?
+  shippingPostCode     String?
+  shippingCountry      String?
+  shippingPhone        String?
+  deliveryInstructions String?
+  shippingMethod       String?
+  paymentIntentId      String?
+  paymentStatus        PaymentStatus @default(PENDING)
+  orderStatus          OrderStatus   @default(PROCESSING)
+  orderCode            String?       @unique
+  shippingFullName     String?
+  discountAmount       Float?
+  discountCode         String?
+  discountApplied      String?
+  preTotalPrice        Float
+  deliveryFee          Float?
+  shippingMethodLabel  String?
+  priceAfterDiscount   Float?
+  currency             Currency      @default(NZD)
+  fulfillments         Fulfillment[]
+  orderItems           OrderItem[]
+  user                 User?         @relation(fields: [userId], references: [id])
+
+  @@map("orders")
+}
+
+// ============================================
+// ORDER ITEM MODEL
+// ============================================
+model OrderItem {
+  id         String       @id @default(cuid())
+  orderId    String
+  itemId     String
+  quantity   Int
+  price      Float
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime?
+  fulfillmentId String?
+  digitalDelivered Boolean?
+  downloadCount    Int?
+  fulfillmentType  String?
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item       Item         @relation(fields: [itemId], references: [id])
+  fulfillment Fulfillment? @relation(fields: [fulfillmentId], references: [id])
+
+  @@map("order_items")
+}
+
+// ============================================
+// FULFILLMENT MODEL (formerly Shipment)
+// ============================================
+model Fulfillment {
+  id                      String            @id @default(cuid())
+  orderId                 String
+  providerId              String
+  trackingCode            String?
+  shippingProvider        String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime?
+  fulfillmentStatus       FulfillmentStatus @default(PENDING)
+  shippingProviderWebsite String?
+  order                   Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider                Provider          @relation(fields: [providerId], references: [id])
+  orderItems              OrderItem[]
+
+  @@map("fulfillments")
+}
+
+// ============================================
+// POST CATEGORY MODEL
+// ============================================
+model PostCategory {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  posts     Post[]
+
+  @@map("post_categories")
+}
+
+// ============================================
+// POST MODEL
+// ============================================
+model Post {
+  id             String        @id @default(cuid())
+  title          String
+  content        String
+  viewCounts     Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime?
+  postCategoryId String?
+  category       PostCategory? @relation(fields: [postCategoryId], references: [id])
+  images         PostImages[]
+
+  @@map("posts")
+}
+
+// ============================================
+// POST IMAGES MODEL
+// ============================================
+model PostImages {
+  id        String    @id @default(cuid())
+  url       String
+  postId    String
+  isPrimary Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  post      Post      @relation(fields: [postId], references: [id])
+
+  @@map("post_images")
+}
+
+// ============================================
+// SEARCHED KEYWORD MODEL
+// ============================================
+model SearchedKeyword {
+  id        String    @id @default(cuid())
+  keyword   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  counts    Int       @default(1)
+
+  @@map("searched_keywords")
+}
+
+// ============================================
+// MINIMUM ORDER MODEL
+// ============================================
+model MinimumOrder {
+  id        String    @id @default(cuid())
+  amount    Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+  country   String
+
+  @@map("minimum_orders")
+}
+
+// ============================================
+// DISCOUNT CODE MODEL
+// ============================================
+model DiscountCode {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  discountValue  Float
+  isPercentage   Boolean
+  expirationDate DateTime?
+  usageCount     Int       @default(0)
+  maxUsage       Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  published      Boolean   @default(false)
+
+  @@map("discount_codes")
+}
+
+// ============================================
+// PROMOTION MODEL
+// ============================================
+model Promotion {
+  id          String            @id @default(cuid())
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  published   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  hasLink     Boolean           @default(false)
+  images      PromotionImages[]
+
+  @@map("promotions")
+}
+
+// ============================================
+// PROMOTION IMAGES MODEL
+// ============================================
+model PromotionImages {
+  id          String    @id @default(cuid())
+  url         String
+  promotionId String
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+
+  @@map("promotion_images")
+}
+
+// ============================================
+// NEWSLETTER SUBSCRIBER MODEL
+// ============================================
+model NewsletterSubscriber {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  isActive    Boolean   @default(true)
+  source      String?
+  discountUsed Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("newsletter_subscribers")
+}
+
+// ============================================
+// DELIVERY ZONE MODEL
+// ============================================
+model DeliveryZone {
+  id               String             @id @default(cuid())
+  name             String
+  countryCode      String             @unique
+  currency         Currency           @default(NZD)
+  freeThreshold    Float
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  shippingMethods  ShippingMethod[]
+
+  @@map("delivery_zones")
+}
+
+// ============================================
+// SHIPPING METHOD MODEL
+// ============================================
+model ShippingMethod {
+  id               String       @id @default(cuid())
+  deliveryZoneId   String
+  methodId         String
+  label            String
+  price            Float
+  estimatedDays    String
+  isFreeEligible   Boolean      @default(false)
+  isActive         Boolean      @default(true)
+  sortOrder        Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deliveryZone     DeliveryZone @relation(fields: [deliveryZoneId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryZoneId, methodId])
+  @@map("shipping_methods")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum Role {
+  USER
+  ADMIN
+
+  @@map("role")
+}
+
+enum OrderStatus {
+  PROCESSING
+  COMPLETED
+  CANCELED
+  SHIPPING
+
+  @@map("order_status")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+
+  @@map("payment_status")
+}
+
+enum FulfillmentStatus {
+  PENDING
+  SHIPPED
+
+  @@map("fulfillment_status")
+}
